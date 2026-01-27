@@ -56,8 +56,14 @@ frankie prices -o json
 
 ## Configuration
 
-Configuration is stored in `~/.config/frankie/config.yaml`.
+Credentials are stored in `~/.config/frankie/credentials.json`.
+
+## Disclaimer
+
+This project is not developed, nor supported by Frank Energie.
 
 ## Acknowledgements
 
-The initial implementation of the API interactions was based on [python-frank-energie](https://github.com/HiDiHo01/python-frank-energie). Built with the assistance of [Claude Code](https://claude.ai/code).
+The initial implementation of the API interactions was based on [python-frank-energie](https://github.com/HiDiHo01/python-frank-energie).
+
+Built with the assistance of [Claude Code](https://claude.ai/code).

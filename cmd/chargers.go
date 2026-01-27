@@ -97,9 +97,7 @@ func runChargers(cmd *cobra.Command, args []string) error {
 		rows = append(rows, []string{brand, model, status, smart, pluggedIn, charging, rate})
 	}
 
-	table := output.Table(headers)
-	table.AppendBulk(rows)
-	table.Render()
+	output.Table(headers, rows)
 
 	return nil
 }

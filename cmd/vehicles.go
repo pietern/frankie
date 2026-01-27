@@ -96,9 +96,7 @@ func runVehicles(cmd *cobra.Command, args []string) error {
 		rows = append(rows, []string{brand, model, status, battery, rangeKm, charging, rate})
 	}
 
-	table := output.Table(headers)
-	table.AppendBulk(rows)
-	table.Render()
+	output.Table(headers, rows)
 
 	return nil
 }

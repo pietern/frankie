@@ -129,9 +129,7 @@ func displayUsageSummary(usage *models.PeriodUsageAndCosts, date string) {
 		return
 	}
 
-	table := output.Table(headers)
-	table.AppendBulk(rows)
-	table.Render()
+	output.Table(headers, rows)
 }
 
 func displayEnergyUsage(name string, category *models.EnergyCategory, date string) {
@@ -154,9 +152,7 @@ func displayEnergyUsage(name string, category *models.EnergyCategory, date strin
 		})
 	}
 
-	table := output.Table(headers)
-	table.AppendBulk(rows)
-	table.Render()
+	output.Table(headers, rows)
 }
 
 func formatTime(isoTime string) string {

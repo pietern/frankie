@@ -113,7 +113,5 @@ func displayAllInvoices(invoices []models.Invoice) {
 		})
 	}
 
-	table := output.Table(headers)
-	table.AppendBulk(rows)
-	table.Render()
+	output.Table(headers, rows)
 }

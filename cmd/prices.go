@@ -178,9 +178,7 @@ func displayElectricityPrices(prices *models.MarketPrices, date string) error {
 		})
 	}
 
-	table := output.Table(headers)
-	table.AppendBulk(rows)
-	table.Render()
+	output.Table(headers, rows)
 
 	return nil
 }
@@ -210,9 +208,7 @@ func displayGasPrices(prices *models.MarketPrices, date string) error {
 		})
 	}
 
-	table := output.Table(headers)
-	table.AppendBulk(rows)
-	table.Render()
+	output.Table(headers, rows)
 
 	return nil
 }

@@ -6,7 +6,8 @@ import (
 	"io"
 	"os"
 
-	"github.com/olekukonko/tablewriter"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/lipgloss/table"
 )
 
 // Format represents the output format type
@@ -17,25 +18,25 @@ const (
 	FormatJSON  Format = "json"
 )
 
-// Table creates a new table writer with default styling
-func Table(headers []string) *tablewriter.Table {
-	return TableTo(os.Stdout, headers)
+// Table prints a table with default styling to stdout
+func Table(headers []string, rows [][]string) {
+	TableTo(os.Stdout, headers, rows)
 }
 
-// TableTo creates a new table writer to a specific writer
-func TableTo(w io.Writer, headers []string) *tablewriter.Table {
-	table := tablewriter.NewWriter(w)
-	table.SetHeader(headers)
-	table.SetBorder(false)
-	table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
-	table.SetAlignment(tablewriter.ALIGN_LEFT)
-	table.SetCenterSeparator("")
-	table.SetColumnSeparator("")
-	table.SetRowSeparator("")
-	table.SetHeaderLine(false)
-	table.SetTablePadding("  ")
-	table.SetNoWhiteSpace(true)
-	return table
+// TableTo prints a table with default styling to a specific writer
+func TableTo(w io.Writer, headers []string, rows [][]string) {
+	t := table.New().
+		Headers(headers...).
+		Rows(rows...).
+		Border(lipgloss.HiddenBorder()).
+		StyleFunc(func(row, col int) lipgloss.Style {
+			style := lipgloss.NewStyle().PaddingRight(2)
+			if row == table.HeaderRow {
+				return style.Bold(true)
+			}
+			return style
+		})
+	fmt.Fprintln(w, t)
 }
 
 // JSON outputs data as formatted JSON
@@ -56,9 +57,7 @@ func Print(format Format, headers []string, rows [][]string, jsonData interface{
 	case FormatJSON:
 		return JSON(jsonData)
 	default:
-		table := Table(headers)
-		table.AppendBulk(rows)
-		table.Render()
+		Table(headers, rows)
 		return nil
 	}
 }

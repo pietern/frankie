@@ -108,9 +108,7 @@ func runBatteriesList(cmd *cobra.Command, args []string) error {
 		})
 	}
 
-	table := output.Table(headers)
-	table.AppendBulk(rows)
-	table.Render()
+	output.Table(headers, rows)
 
 	return nil
 }
@@ -261,9 +259,7 @@ func runBatteriesSessions(cmd *cobra.Command, args []string) error {
 		})
 	}
 
-	table := output.Table(headers)
-	table.AppendBulk(rows)
-	table.Render()
+	output.Table(headers, rows)
 
 	return nil
 }

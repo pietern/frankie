@@ -15,10 +15,13 @@ import (
 )
 
 const (
-	resolution15Min    = 15
-	resolution60Min    = 60
-	resolutionPT15M    = "PT15M"
-	resolutionPT60M    = "PT60M"
+	resolution15Min = 15
+	resolution60Min = 60
+	resolutionPT15M = "PT15M"
+	resolutionPT60M = "PT60M"
+
+	// Day-ahead prices are published around 12:55 CET
+	tomorrowPricesAvailableHour = 13
 )
 
 var (
@@ -48,64 +51,116 @@ func init() {
 func runPrices(cmd *cobra.Command, args []string) error {
 	client := api.NewClient()
 
-	// Set date
-	date := pricesDate
-	if date == "" {
-		date = time.Now().Format("2006-01-02")
+	// Determine dates to fetch
+	dates := getPriceDates()
+
+	// Collect all prices
+	type priceResult struct {
+		date   string
+		prices *models.MarketPrices
 	}
+	var results []priceResult
 
-	var prices *models.MarketPrices
-	var err error
+	for _, date := range dates {
+		var prices *models.MarketPrices
+		var err error
 
-	if pricesSite != "" {
-		// Customer-specific prices (requires auth)
-		// Resolve partial site reference
-		var siteRef string
-		siteRef, err = resolveSiteReference(client, pricesSite)
+		if pricesSite != "" {
+			// Customer-specific prices (requires auth)
+			// Resolve partial site reference (only once)
+			var siteRef string
+			siteRef, err = resolveSiteReference(client, pricesSite)
+			if err != nil {
+				return err
+			}
+			prices, err = fetchCustomerPrices(client, date, siteRef)
+		} else if pricesBelgium {
+			// Belgium prices
+			client.SetCountry("BE")
+			prices, err = fetchBelgiumPrices(client, date)
+		} else {
+			// Netherlands public prices
+			var resolution string
+			switch pricesResolution {
+			case resolution15Min:
+				resolution = resolutionPT15M
+				// 15-minute resolution requires authentication
+				manager := auth.NewManager(client)
+				if err := manager.EnsureAuthenticated(); err != nil {
+					return fmt.Errorf("15-minute resolution requires login: %w", err)
+				}
+			case resolution60Min:
+				resolution = resolutionPT60M
+			default:
+				return fmt.Errorf("invalid resolution: %d (must be %d or %d)", pricesResolution, resolution15Min, resolution60Min)
+			}
+			prices, err = fetchPublicPrices(client, date, resolution)
+		}
+
 		if err != nil {
 			return err
 		}
-		prices, err = fetchCustomerPrices(client, date, siteRef)
-	} else if pricesBelgium {
-		// Belgium prices
-		client.SetCountry("BE")
-		prices, err = fetchBelgiumPrices(client, date)
-	} else {
-		// Netherlands public prices
-		var resolution string
-		switch pricesResolution {
-		case resolution15Min:
-			resolution = resolutionPT15M
-			// 15-minute resolution requires authentication
-			manager := auth.NewManager(client)
-			if err := manager.EnsureAuthenticated(); err != nil {
-				return fmt.Errorf("15-minute resolution requires login: %w", err)
-			}
-		case resolution60Min:
-			resolution = resolutionPT60M
-		default:
-			return fmt.Errorf("invalid resolution: %d (must be %d or %d)", pricesResolution, resolution15Min, resolution60Min)
+
+		if prices != nil {
+			results = append(results, priceResult{date: date, prices: prices})
 		}
-		prices, err = fetchPublicPrices(client, date, resolution)
 	}
 
-	if err != nil {
-		return err
-	}
-
-	if prices == nil {
-		return fmt.Errorf("no prices available for %s", date)
+	if len(results) == 0 {
+		return fmt.Errorf("no prices available")
 	}
 
 	if getOutputFormat() == "json" {
-		return output.JSON(prices)
+		if len(results) == 1 {
+			return output.JSON(results[0].prices)
+		}
+		// Multiple dates: merge prices into single response
+		merged := &models.MarketPrices{}
+		for _, r := range results {
+			merged.ElectricityPrices = append(merged.ElectricityPrices, r.prices.ElectricityPrices...)
+			merged.GasPrices = append(merged.GasPrices, r.prices.GasPrices...)
+		}
+		return output.JSON(merged)
+	}
+
+	// Merge all prices
+	var allPrices models.MarketPrices
+	for _, r := range results {
+		allPrices.ElectricityPrices = append(allPrices.ElectricityPrices, r.prices.ElectricityPrices...)
+		allPrices.GasPrices = append(allPrices.GasPrices, r.prices.GasPrices...)
 	}
 
 	// Display prices
 	if pricesShowGas {
-		return displayGasPrices(prices, date)
+		return displayGasPrices(&allPrices)
 	}
-	return displayElectricityPrices(prices, date)
+	return displayElectricityPrices(&allPrices)
+}
+
+// getPriceDates returns the dates to fetch prices for.
+// If a specific date was requested, returns only that date.
+// Otherwise returns today, and tomorrow if after 13:00 CET.
+func getPriceDates() []string {
+	if pricesDate != "" {
+		return []string{pricesDate}
+	}
+
+	// Load CET timezone
+	cet, err := time.LoadLocation("Europe/Amsterdam")
+	if err != nil {
+		// Fallback to local time if timezone fails
+		cet = time.Local
+	}
+
+	now := time.Now().In(cet)
+	today := now.Format("2006-01-02")
+	tomorrow := now.AddDate(0, 0, 1).Format("2006-01-02")
+
+	// Day-ahead prices are published around 13:00 CET
+	if now.Hour() >= tomorrowPricesAvailableHour {
+		return []string{today, tomorrow}
+	}
+	return []string{today}
 }
 
 func fetchPublicPrices(client *api.Client, date, resolution string) (*models.MarketPrices, error) {
@@ -169,31 +224,26 @@ func fetchCustomerPrices(client *api.Client, date, siteRef string) (*models.Mark
 	return result.CustomerMarketPrices, nil
 }
 
-func displayElectricityPrices(prices *models.MarketPrices, date string) error {
+func displayElectricityPrices(prices *models.MarketPrices) error {
 	if len(prices.ElectricityPrices) == 0 {
-		fmt.Printf("No electricity prices available for %s\n", date)
+		fmt.Println("No electricity prices available")
 		return nil
 	}
 
-	fmt.Printf("Electricity prices for %s\n\n", date)
+	fmt.Println("Electricity prices\n")
 
-	// Show average if available
-	if prices.AverageElectricityPrices != nil {
-		avg := prices.AverageElectricityPrices
-		fmt.Printf("Average: €%.4f/%s (all-in: €%.4f)\n\n",
-			avg.AverageMarketPrice, avg.PerUnit, avg.AverageAllInPrice)
-	}
-
-	headers := []string{"Time", "Market", "Total", "All-In"}
+	headers := []string{"Date", "Time", "Market", "Total", "All-In"}
 	var rows [][]string
 
 	for _, p := range prices.ElectricityPrices {
+		dateStr := p.From.Local().Format("2006-01-02")
 		timeStr := p.From.Local().Format("15:04")
 		allIn := p.AllInPrice
 		if allIn == 0 {
 			allIn = p.TotalPrice() // Fallback for Belgium prices
 		}
 		rows = append(rows, []string{
+			dateStr,
 			timeStr,
 			fmt.Sprintf("€%.4f", p.MarketPrice),
 			fmt.Sprintf("€%.4f", p.TotalPrice()),
@@ -206,24 +256,26 @@ func displayElectricityPrices(prices *models.MarketPrices, date string) error {
 	return nil
 }
 
-func displayGasPrices(prices *models.MarketPrices, date string) error {
+func displayGasPrices(prices *models.MarketPrices) error {
 	if len(prices.GasPrices) == 0 {
-		fmt.Printf("No gas prices available for %s\n", date)
+		fmt.Println("No gas prices available")
 		return nil
 	}
 
-	fmt.Printf("Gas prices for %s\n\n", date)
+	fmt.Println("Gas prices\n")
 
-	headers := []string{"Time", "Market", "Total", "All-In"}
+	headers := []string{"Date", "Time", "Market", "Total", "All-In"}
 	var rows [][]string
 
 	for _, p := range prices.GasPrices {
+		dateStr := p.From.Local().Format("2006-01-02")
 		timeStr := p.From.Local().Format("15:04")
 		allIn := p.AllInPrice
 		if allIn == 0 {
 			allIn = p.TotalPrice() // Fallback for Belgium prices
 		}
 		rows = append(rows, []string{
+			dateStr,
 			timeStr,
 			fmt.Sprintf("€%.4f", p.MarketPrice),
 			fmt.Sprintf("€%.4f", p.TotalPrice()),

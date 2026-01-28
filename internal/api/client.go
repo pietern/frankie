@@ -69,8 +69,8 @@ func (c *Client) Execute(query, operationName string, variables map[string]inter
 	return c.ExecuteWithHeaders(query, operationName, variables, nil)
 }
 
-// ExecuteWithHeaders sends a GraphQL request with custom headers
-func (c *Client) ExecuteWithHeaders(query, operationName string, variables map[string]interface{}, extraHeaders map[string]string) (*GraphQLResponse, error) {
+// doRequest sends a GraphQL request and returns the raw response body
+func (c *Client) doRequest(query, operationName string, variables map[string]interface{}, extraHeaders map[string]string) ([]byte, int, error) {
 	reqBody := GraphQLRequest{
 		Query:         query,
 		OperationName: operationName,
@@ -79,12 +79,12 @@ func (c *Client) ExecuteWithHeaders(query, operationName string, variables map[s
 
 	jsonBody, err := json.Marshal(reqBody)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request: %w", err)
+		return nil, 0, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
 	req, err := http.NewRequest("POST", c.baseURL, bytes.NewBuffer(jsonBody))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+		return nil, 0, fmt.Errorf("failed to create request: %w", err)
 	}
 
 	// Set headers
@@ -109,25 +109,41 @@ func (c *Client) ExecuteWithHeaders(query, operationName string, variables map[s
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrNetwork, err)
+		return nil, 0, fmt.Errorf("%w: %v", ErrNetwork, err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
+		return nil, resp.StatusCode, fmt.Errorf("failed to read response: %w", err)
 	}
 
-	if resp.StatusCode == http.StatusUnauthorized {
+	return body, resp.StatusCode, nil
+}
+
+// ExecuteRaw sends a GraphQL request and returns the raw response body without error handling
+func (c *Client) ExecuteRaw(query, operationName string, variables map[string]interface{}) ([]byte, error) {
+	body, _, err := c.doRequest(query, operationName, variables, nil)
+	return body, err
+}
+
+// ExecuteWithHeaders sends a GraphQL request with custom headers
+func (c *Client) ExecuteWithHeaders(query, operationName string, variables map[string]interface{}, extraHeaders map[string]string) (*GraphQLResponse, error) {
+	body, statusCode, err := c.doRequest(query, operationName, variables, extraHeaders)
+	if err != nil {
+		return nil, err
+	}
+
+	if statusCode == http.StatusUnauthorized {
 		return nil, ErrAuthRequired
 	}
-	if resp.StatusCode == http.StatusForbidden {
+	if statusCode == http.StatusForbidden {
 		return nil, ErrForbidden
 	}
-	if resp.StatusCode == http.StatusBadRequest {
+	if statusCode == http.StatusBadRequest {
 		return nil, ErrBadRequest
 	}
-	if resp.StatusCode >= 500 {
+	if statusCode >= 500 {
 		return nil, ErrServerError
 	}
 

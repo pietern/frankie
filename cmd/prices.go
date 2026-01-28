@@ -14,11 +14,19 @@ import (
 	"github.com/pietern/frankie/internal/output"
 )
 
+const (
+	resolution15Min    = 15
+	resolution60Min    = 60
+	resolutionPT15M    = "PT15M"
+	resolutionPT60M    = "PT60M"
+)
+
 var (
-	pricesDate     string
-	pricesBelgium  bool
-	pricesSite     string
-	pricesShowGas  bool
+	pricesDate       string
+	pricesBelgium    bool
+	pricesSite       string
+	pricesShowGas    bool
+	pricesResolution int
 )
 
 var pricesCmd = &cobra.Command{
@@ -34,6 +42,7 @@ func init() {
 	pricesCmd.Flags().BoolVar(&pricesBelgium, "be", false, "show Belgium prices instead of Netherlands")
 	pricesCmd.Flags().StringVarP(&pricesSite, "site", "s", "", "site reference for customer-specific prices")
 	pricesCmd.Flags().BoolVar(&pricesShowGas, "gas", false, "show gas prices instead of electricity")
+	pricesCmd.Flags().IntVarP(&pricesResolution, "resolution", "r", resolution60Min, "price resolution in minutes (15 or 60, 15 requires login)")
 }
 
 func runPrices(cmd *cobra.Command, args []string) error {
@@ -63,7 +72,21 @@ func runPrices(cmd *cobra.Command, args []string) error {
 		prices, err = fetchBelgiumPrices(client, date)
 	} else {
 		// Netherlands public prices
-		prices, err = fetchPublicPrices(client, date)
+		var resolution string
+		switch pricesResolution {
+		case resolution15Min:
+			resolution = resolutionPT15M
+			// 15-minute resolution requires authentication
+			manager := auth.NewManager(client)
+			if err := manager.EnsureAuthenticated(); err != nil {
+				return fmt.Errorf("15-minute resolution requires login: %w", err)
+			}
+		case resolution60Min:
+			resolution = resolutionPT60M
+		default:
+			return fmt.Errorf("invalid resolution: %d (must be %d or %d)", pricesResolution, resolution15Min, resolution60Min)
+		}
+		prices, err = fetchPublicPrices(client, date, resolution)
 	}
 
 	if err != nil {
@@ -85,10 +108,10 @@ func runPrices(cmd *cobra.Command, args []string) error {
 	return displayElectricityPrices(prices, date)
 }
 
-func fetchPublicPrices(client *api.Client, date string) (*models.MarketPrices, error) {
+func fetchPublicPrices(client *api.Client, date, resolution string) (*models.MarketPrices, error) {
 	variables := map[string]interface{}{
 		"date":       date,
-		"resolution": "PT60M",
+		"resolution": resolution,
 	}
 
 	resp, err := client.Execute(api.MarketPricesQuery, "MarketPrices", variables)

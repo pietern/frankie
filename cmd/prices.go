@@ -230,7 +230,7 @@ func displayElectricityPrices(prices *models.MarketPrices) error {
 		return nil
 	}
 
-	fmt.Println("Electricity prices\n")
+	fmt.Println("Electricity prices")
 
 	headers := []string{"Date", "Time", "Market", "Total", "All-In"}
 	var rows [][]string
@@ -262,7 +262,7 @@ func displayGasPrices(prices *models.MarketPrices) error {
 		return nil
 	}
 
-	fmt.Println("Gas prices\n")
+	fmt.Println("Gas prices")
 
 	headers := []string{"Date", "Time", "Market", "Total", "All-In"}
 	var rows [][]string

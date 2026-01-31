@@ -5,6 +5,8 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+
+	frankieErrors "github.com/pietern/frankie/internal/errors"
 )
 
 var (
@@ -20,7 +22,7 @@ var rootCmd = &cobra.Command{
 
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(os.Stderr, frankieErrors.Format(err))
 		os.Exit(1)
 	}
 }

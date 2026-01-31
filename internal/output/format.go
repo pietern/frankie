@@ -71,8 +71,8 @@ func KeyValue(pairs map[string]string) {
 func KeyValueTo(w io.Writer, pairs map[string]string) {
 	maxKeyLen := 0
 	for k := range pairs {
-		if len(k) > maxKeyLen {
-			maxKeyLen = len(k)
+		if len(k)+1 > maxKeyLen { // +1 for colon
+			maxKeyLen = len(k) + 1
 		}
 	}
 
@@ -90,8 +90,8 @@ func KeyValueOrdered(keys []string, pairs map[string]string) {
 func KeyValueOrderedTo(w io.Writer, keys []string, pairs map[string]string) {
 	maxKeyLen := 0
 	for _, k := range keys {
-		if len(k) > maxKeyLen {
-			maxKeyLen = len(k)
+		if len(k)+1 > maxKeyLen { // +1 for colon
+			maxKeyLen = len(k) + 1
 		}
 	}
 

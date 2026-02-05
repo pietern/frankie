@@ -9,10 +9,7 @@ import (
 	frankieErrors "github.com/pietern/frankie/internal/errors"
 )
 
-var (
-	outputFormat string
-	verbose      bool
-)
+var outputFormat string
 
 var rootCmd = &cobra.Command{
 	Use:   "frankie",
@@ -29,13 +26,8 @@ func Execute() {
 
 func init() {
 	rootCmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", "table", "output format: table or json")
-	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "verbose output")
 }
 
 func getOutputFormat() string {
 	return outputFormat
-}
-
-func isVerbose() bool {
-	return verbose
 }

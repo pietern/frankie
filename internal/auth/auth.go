@@ -24,10 +24,10 @@ func NewManager(client *api.Client) *Manager {
 }
 
 // Login authenticates with email and password
-func (m *Manager) Login(email, password string) (*models.Credentials, error) {
+func (m *Manager) Login(email, password string) error {
 	authToken, refreshToken, err := m.client.Login(email, password)
 	if err != nil {
-		return nil, fmt.Errorf("login failed: %w", err)
+		return fmt.Errorf("login failed: %w", err)
 	}
 
 	expiresAt, _ := ParseJWTExpiration(authToken)
@@ -39,10 +39,10 @@ func (m *Manager) Login(email, password string) (*models.Credentials, error) {
 	}
 
 	if err := SaveCredentials(creds); err != nil {
-		return nil, fmt.Errorf("failed to save credentials: %w", err)
+		return fmt.Errorf("failed to save credentials: %w", err)
 	}
 
-	return creds, nil
+	return nil
 }
 
 // Logout clears stored credentials

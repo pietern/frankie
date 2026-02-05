@@ -60,16 +60,13 @@ func runLogin(cmd *cobra.Command, args []string) error {
 	client := api.NewClient()
 	manager := auth.NewManager(client)
 
-	creds, err := manager.Login(email, password)
+	err := manager.Login(email, password)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Login failed:", err)
 		return err
 	}
 
 	fmt.Println("Login successful!")
-	if isVerbose() {
-		fmt.Printf("Token expires at: %s\n", creds.ExpiresAt.Format("2006-01-02 15:04:05"))
-	}
 
 	return nil
 }

@@ -51,36 +51,6 @@ func JSONTo(w io.Writer, data interface{}) error {
 	return enc.Encode(data)
 }
 
-// Print outputs data in the specified format
-func Print(format Format, headers []string, rows [][]string, jsonData interface{}) error {
-	switch format {
-	case FormatJSON:
-		return JSON(jsonData)
-	default:
-		Table(headers, rows)
-		return nil
-	}
-}
-
-// KeyValue prints key-value pairs in a simple format
-func KeyValue(pairs map[string]string) {
-	KeyValueTo(os.Stdout, pairs)
-}
-
-// KeyValueTo prints key-value pairs to a specific writer
-func KeyValueTo(w io.Writer, pairs map[string]string) {
-	maxKeyLen := 0
-	for k := range pairs {
-		if len(k)+1 > maxKeyLen { // +1 for colon
-			maxKeyLen = len(k) + 1
-		}
-	}
-
-	for k, v := range pairs {
-		fmt.Fprintf(w, "%-*s  %s\n", maxKeyLen, k+":", v)
-	}
-}
-
 // KeyValueOrdered prints key-value pairs in order
 func KeyValueOrdered(keys []string, pairs map[string]string) {
 	KeyValueOrderedTo(os.Stdout, keys, pairs)

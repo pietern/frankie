@@ -37,8 +37,6 @@ var (
 // APIError represents an error from the Frank Energie API
 type APIError struct {
 	Message string
-	Path    []string
-	Code    string
 }
 
 func (e *APIError) Error() string {

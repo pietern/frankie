@@ -1,18 +1,8 @@
 package errors
 
 import (
-	"errors"
 	"fmt"
 	"strings"
-)
-
-// Sentinel errors for common error conditions
-var (
-	ErrAuthRequired          = errors.New("authentication required")
-	ErrInvalidCredentials    = errors.New("invalid email or password")
-	ErrNetwork               = errors.New("network error")
-	ErrServerError           = errors.New("server error")
-	ErrSmartTradingNotEnabled = errors.New("smart trading not enabled")
 )
 
 // errorHints maps error messages or types to helpful hints

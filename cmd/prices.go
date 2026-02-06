@@ -132,9 +132,9 @@ func runPrices(cmd *cobra.Command, args []string) error {
 
 	// Display prices
 	if pricesShowGas {
-		return displayGasPrices(&allPrices)
+		return displayPrices("Gas", allPrices.GasPrices)
 	}
-	return displayElectricityPrices(&allPrices)
+	return displayPrices("Electricity", allPrices.ElectricityPrices)
 }
 
 // getPriceDates returns the dates to fetch prices for.
@@ -201,11 +201,6 @@ func fetchBelgiumPrices(client *api.Client, date string) (*models.MarketPrices, 
 }
 
 func fetchCustomerPrices(client *api.Client, date, siteRef string) (*models.MarketPrices, error) {
-	manager := auth.NewManager(client)
-	if err := manager.EnsureAuthenticated(); err != nil {
-		return nil, fmt.Errorf("not logged in: %w", err)
-	}
-
 	variables := map[string]interface{}{
 		"date":          date,
 		"siteReference": siteRef,
@@ -224,50 +219,18 @@ func fetchCustomerPrices(client *api.Client, date, siteRef string) (*models.Mark
 	return result.CustomerMarketPrices, nil
 }
 
-func displayElectricityPrices(prices *models.MarketPrices) error {
-	if len(prices.ElectricityPrices) == 0 {
-		fmt.Println("No electricity prices available")
+func displayPrices(label string, prices []models.Price) error {
+	if len(prices) == 0 {
+		fmt.Printf("No %s prices available\n", strings.ToLower(label))
 		return nil
 	}
 
-	fmt.Println("Electricity prices")
+	fmt.Printf("%s prices\n", label)
 
 	headers := []string{"Date", "Time", "Market", "Total", "All-In"}
 	var rows [][]string
 
-	for _, p := range prices.ElectricityPrices {
-		dateStr := p.From.Local().Format("2006-01-02")
-		timeStr := p.From.Local().Format("15:04")
-		allIn := p.AllInPrice
-		if allIn == 0 {
-			allIn = p.TotalPrice() // Fallback for Belgium prices
-		}
-		rows = append(rows, []string{
-			dateStr,
-			timeStr,
-			fmt.Sprintf("€%.4f", p.MarketPrice),
-			fmt.Sprintf("€%.4f", p.TotalPrice()),
-			fmt.Sprintf("€%.4f", allIn),
-		})
-	}
-
-	output.Table(headers, rows)
-
-	return nil
-}
-
-func displayGasPrices(prices *models.MarketPrices) error {
-	if len(prices.GasPrices) == 0 {
-		fmt.Println("No gas prices available")
-		return nil
-	}
-
-	fmt.Println("Gas prices")
-
-	headers := []string{"Date", "Time", "Market", "Total", "All-In"}
-	var rows [][]string
-
-	for _, p := range prices.GasPrices {
+	for _, p := range prices {
 		dateStr := p.From.Local().Format("2006-01-02")
 		timeStr := p.From.Local().Format("15:04")
 		allIn := p.AllInPrice

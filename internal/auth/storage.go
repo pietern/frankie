@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/pietern/frankie/internal/config"
 	"github.com/pietern/frankie/internal/models"
@@ -70,9 +69,4 @@ func CredentialsExist() bool {
 	path := config.GetCredentialsPath()
 	_, err := os.Stat(path)
 	return err == nil
-}
-
-// GetConfigDir returns the config directory, creating it if necessary
-func GetConfigDir() string {
-	return filepath.Dir(config.GetCredentialsPath())
 }

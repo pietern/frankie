@@ -7,7 +7,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/pietern/frankie/internal/api"
-	"github.com/pietern/frankie/internal/auth"
 	"github.com/pietern/frankie/internal/models"
 	"github.com/pietern/frankie/internal/output"
 )
@@ -24,11 +23,9 @@ func init() {
 }
 
 func runConnections(cmd *cobra.Command, args []string) error {
-	client := api.NewClient()
-	manager := auth.NewManager(client)
-
-	if err := manager.EnsureAuthenticated(); err != nil {
-		return fmt.Errorf("not logged in: %w", err)
+	client, err := newAuthenticatedClient()
+	if err != nil {
+		return err
 	}
 
 	resp, err := client.Execute(api.MeQuery, "Me", nil)
